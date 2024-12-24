@@ -1,0 +1,27 @@
+replicaCount: 3
+
+image:
+  repository: localhost:5000/site-ecommerce
+  tag: 1.3.0
+
+service:
+  type: ClusterIP
+  port: 8080         # Port exposé par le service
+  targetPort: 3000   # Port sur lequel l'application écoute
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: site-ecommerce.example
+      paths:
+        - path: /
+          pathType: Prefix
+
+autoscaling:
+  enabled: false
+
+serviceAccount:
+  create: true           # Indique si le compte de service doit être créé
+  name: site-ecommerce   # Nom du compte de service (optionnel)
+

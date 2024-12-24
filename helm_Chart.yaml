@@ -1,0 +1,45 @@
+---
+- hosts: all
+  become: false
+  user: mahdi
+  tasks:
+    - name: Créer le répertoire de destination si nécessaire
+      file:
+        path: /home/mahdi/LiveCorp_helm/
+        state: directory
+        mode: '0755'
+
+    - name: Synchroniser le répertoire site-ecommerce sur le serveur distant
+      synchronize:
+        src: ~/Documents/DevOps/LiveCorp_helm/
+        dest: /home/mahdi/LiveCorp_helm/
+        mode: push
+
+    - name: Vérifier si Helm est installé
+      command: which helm
+      register: helm_check
+      failed_when: helm_check.rc != 0
+      ignore_errors: true  # Permet de continuer même si Helm n'est pas installé
+
+    - name: Installer Helm si nécessaire
+      apt:
+        name: helm
+        state: present
+      when: helm_check.rc != 0
+
+    - name: Désinstaller le chart Helm s'il existe
+      command: helm uninstall site-ecommerce
+      ignore_errors: true
+
+    - name: Installer Helm Chart
+      command: helm install site-ecommerce /home/mahdi/LiveCorp_helm/site-ecommerce
+      register: helm_output
+      failed_when: helm_output.rc != 0
+
+    - name: Afficher la sortie de Helm
+      debug:
+        var: helm_output.stdout
+
+    - name: Afficher les erreurs de Helm
+      debug:
+        var: helm_output.stderr

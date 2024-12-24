@@ -1,0 +1,86 @@
+---
+- hosts: all
+  become: false
+  user: mahdi
+  tasks:
+
+    # - name: Vérifier si Minikube est installé
+    #   command: which minikube
+    #   register: minikube_check
+    #   failed_when: minikube_check.rc != 0
+
+    # - name: Démarrer Minikube avec le driver Docker
+    #   shell: minikube start --driver=docker
+    #   register: minikube_start_result
+    #   failed_when: minikube_start_result.rc != 0 and "'minikube' is not recognized" not in minikube_start_result.stderr
+
+    # - name: Attendre que Minikube soit prêt
+    #   shell: minikube status | grep "Running"
+    #   register: minikube_status_result
+    #   retries: 10
+    #   delay: 5
+    #   until: minikube_status_result.rc == 0
+
+    - name: Activer le registre d'images Minikube
+      shell: minikube addons enable registry
+      register: registry_enable_result
+      failed_when: registry_enable_result.rc != 0
+
+    - name: Transférer le port du registre
+      shell: minikube kubectl -- port-forward --namespace kube-system service/registry 5000:80 &
+      async: 3600
+      poll: 0
+
+    - name: Attendre que le registre soit accessible
+      command: curl -s http://localhost:5000/v2/_catalog
+      register: result
+      ignore_errors: true
+      retries: 12
+      delay: 5
+      until: result.rc == 0
+
+    - name: Vérifier si Rsync est installé
+      command: which rsync
+      register: rsync_check
+      failed_when: rsync_check.rc != 0
+
+    - name: Installer Rsync si nécessaire
+      apt:
+        name: rsync
+        state: present
+      when: rsync_check.rc != 0
+
+    - name: Créer le répertoire de destination si nécessaire
+      file:
+        path: /home/mahdi/LiveCorp_helm/
+        state: directory
+        mode: '0755'
+
+    - name: Synchroniser le répertoire site-ecommerce sur le serveur distant
+      synchronize:
+        src: ~/Documents/DevOps/LiveCorp_helm/
+        dest: /home/mahdi/LiveCorp_helm/
+        mode: push
+
+    - name: Vérifier si Docker est installé
+      command: which docker
+      register: docker_check
+      failed_when: docker_check.rc != 0
+
+    - name: Construire l'image Docker
+      shell: docker build -t localhost:5000/site-ecommerce:1.3.0 -f ./LiveCorp_helm/LiveCorp/Dockerfile  ./LiveCorp_helm/LiveCorp/
+      register: docker_build_result
+      failed_when: docker_build_result.rc != 0
+
+    - name: Pousser l'image Docker vers le registre Minikube
+      shell: docker push localhost:5000/site-ecommerce:1.3.0
+      register: docker_push_result
+      failed_when: docker_push_result.rc != 0
+
+    - name: Afficher le résultat de la construction de l'image
+      debug:
+        msg: "{{ docker_build_result.stdout }}"
+
+    - name: Afficher le résultat du push de l'image
+      debug:
+        msg: "{{ docker_push_result.stdout }}"

@@ -1,0 +1,23 @@
+---
+- hosts: all
+  become: false
+  user: mahdi
+  tasks:
+
+    - name: S'assurer que le script est exécutable
+      file:
+        path: ./LiveCorp_helm/install_helm.sh
+        mode: '0755'  # Rendre le script exécutable
+
+    - name: Exécuter le script d'installation de Helm
+      shell: ./LiveCorp_helm/install_helm.sh
+      register: helm_install_result
+      ignore_errors: true  # Pour continuer même si le script échoue
+
+    - name: Afficher la sortie de l'installation de Helm
+      debug:
+        var: helm_install_result.stdout
+
+    - name: Afficher les erreurs de l'installation de Helm
+      debug:
+        var: helm_install_result.stderr

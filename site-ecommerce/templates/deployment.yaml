@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "site-ecommerce.fullname" . }}
+  labels:
+    {{- include "site-ecommerce.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "site-ecommerce.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "site-ecommerce.name" . }}
+    spec:
+      containers:
+        - name: {{ include "site-ecommerce.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          # Ajoutez d'autres configurations de conteneur ici (env, resources, etc.)
